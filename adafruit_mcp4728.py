@@ -23,7 +23,7 @@
 `adafruit_mcp4728`
 ================================================================================
 
-Helper library for the TI MCP4728 I2C 12-bit Quad DAC
+Helper library for the Microchip MCP4728 I2C 12-bit Quad DAC
 
 
 * Author(s): Bryan Siepert
@@ -38,30 +38,77 @@ Implementation Notes
 
 **Software and Dependencies:**
 
-* Adafruit CircuitPython firmware for the supported boards:
-  https://circuitpython.org/downloads* Adafruit's Bus Device library: https://github.com/adafruit/Adafruit_CircuitPython_BusDevice* Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register"""
+* Adafruit CircuitPython firmware for the supported boards: https://circuitpython.org/downloads
+* Adafruit's Bus Device library: https://github.com/adafruit/Adafruit_CircuitPython_BusDevice
+* Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register
+"""
 
 __version__ = "0.0.0-auto.0"
-__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP4728.git"'BusDevice': ('https://circuitpython.readthedocs.io/projects/busdevice/en/latest/', None),'Register': ('https://circuitpython.readthedocs.io/projects/register/en/latest/', None),# Common imports; remove if unused or pylint will complain
-from time import sleepimport adafruit_bus_device.i2c_device as i2c_devicefrom adafruit_register.i2c_struct import UnaryStruct, ROUnaryStruct
+__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP4728.git"
+
+from time import sleep
+import adafruit_bus_device.i2c_device as i2c_device
+from adafruit_register.i2c_struct import UnaryStruct, ROUnaryStruct
 from adafruit_register.i2c_struct_array import StructArray
 from adafruit_register.i2c_bit import RWBit
-from adafruit_register.i2c_bits import RWBits_MCP4728_DEFAULT_ADDRESS) = 0x00 # MCP4728 default i2c address
-_MCP4728_DEVICE_ID = 0xFF # MCP4728 device identifier
+from adafruit_register.i2c_bits import RWBits
+
+_MCP4728_DEFAULT_ADDRESS = 0x60 
+
+_MCP4728_CH_A_SINGLE = 0x58
+_MCP4728_CH_B_SINGLE = 0x5A
+_MCP4728_CH_C_SINGLE = 0x5C
+_MCP4728_CH_D_SINGLE = 0x5E
 
 class MCP4728:
-    """Helper library for the TI MCP4728 I2C 12-bit Quad DAC.
+    """Helper library for the Microchip MCP4728 I2C 12-bit Quad DAC.
 
         :param ~busio.I2C i2c_bus: The I2C bus the MCP4728 is connected to.
         :param address: The I2C slave address of the sensor
 
     """
-    _device_id = ROUnaryStruct(_MCP4728_DEVICE_ID, ">B")
+
+    _channel_a_single_write = UnaryStruct(_MCP4728_CH_A_SINGLE, ">H")
+    _channel_b_single_write = UnaryStruct(_MCP4728_CH_B_SINGLE, ">H")
+    _channel_c_single_write = UnaryStruct(_MCP4728_CH_C_SINGLE, ">H")
+    _channel_d_single_write = UnaryStruct(_MCP4728_CH_D_SINGLE, ">H") 
 
     def __init__(self, i2c_bus, address=_MCP4728_DEFAULT_ADDRESS):
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
 
-        if self._device_id != _MCP4728_DEVICE_ID:
-            raise RuntimeError("Failed to find MCP4728 - check your wiring!")
+    @property
+    def channel_a(self):
+        """channel a's current value"""
+        return "hamsters"
+    
+    @channel_a.setter
+    def channel_a(self, value):
+        self._channel_a_single_write = value
 
-        self.reset()
+
+    @property
+    def channel_b(self):
+        """channel b's current value"""
+        return "elves"
+    
+    @channel_b.setter
+    def channel_b(self, value):
+        self._channel_b_single_write = value
+
+    @property
+    def channel_c(self):
+        """channel c's current value"""
+        return "pancakes"
+    
+    @channel_c.setter
+    def channel_c(self, value):
+        self._channel_c_single_write = value
+
+    @property
+    def channel_d(self):
+        """channel d's current value"""
+        return "gummies"
+    
+    @channel_d.setter
+    def channel_d(self, value):
+        self._channel_d_single_write = value

@@ -13,7 +13,7 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_CircuitPython_MCP4728/actions
     :alt: Build Status
 
-Helper library for the TI MCP4728 I2C 12-bit Quad DAC
+Helper library for the MCP4728 I2C 12-bit Quad DAC
 
 
 Dependencies

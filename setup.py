@@ -22,7 +22,7 @@ setup(
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
 
-    description='Helper library for the TI MCP4728 I2C 12-bit Quad DAC',
+    description='Helper library for the MCP4728 I2C 12-bit Quad DAC',
     long_description=long_description,
     long_description_content_type='text/x-rst',
 
