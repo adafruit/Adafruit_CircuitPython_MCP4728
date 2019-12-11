@@ -26,7 +26,7 @@ for i in range(0,45):
 while True:
     for i in range(0,10000):
         bits = bits_array[i%45]
-        mcp4728.channel_a = bits
+        mcp4728.ch_a = bits
         # mcp4728.channel_b = bits
         # mcp4728.channel_c = bits
         # mcp4728.channel_d = bits
