@@ -1,8 +1,7 @@
-import time
+import math
 import board
 import busio
 import adafruit_mcp4728
-import math
 i2c = busio.I2C(board.SCL, board.SDA, frequency=3200000)
 
 mcp4728 =  adafruit_mcp4728.MCP4728(i2c)
