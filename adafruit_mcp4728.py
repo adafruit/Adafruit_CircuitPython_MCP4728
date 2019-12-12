@@ -45,6 +45,7 @@ Implementation Notes
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP4728.git"
 
+from struct import pack_into
 from time import sleep
 import adafruit_bus_device.i2c_device as i2c_device
 from adafruit_register.i2c_struct import UnaryStruct
@@ -133,22 +134,18 @@ class MCP4728:
     def _create_channels(self):
         raw_registers = self._read_registers()
 
-        self.channel_a = Channel(self._cache_page(*raw_registers[0]))
-        self.channel_b = Channel(self._cache_page(*raw_registers[1]))
-        self.channel_c = Channel(self._cache_page(*raw_registers[2]))
-        self.channel_d = Channel(self._cache_page(*raw_registers[3]))
+        self.channel_a = Channel(self, self._cache_page(*raw_registers[0]), 0)
+        self.channel_b = Channel(self, self._cache_page(*raw_registers[1]), 1)
+        self.channel_c = Channel(self, self._cache_page(*raw_registers[2]), 2)
+        self.channel_d = Channel(self, self._cache_page(*raw_registers[3]), 3)
 
     def _read_registers(self):
         buf = bytearray(24)
 
         with self.i2c_device as i2c:
             i2c.readinto(buf)
-        index = 0
-        for index, value in enumerate(buf):
-            if index %3 == 0:
-                print("\n%4s\t"%index, end="")
-            print("%s %s "%(format(value, '#010b'), hex(value)), end="")
-        print()
+
+        self._print_buffer(buf)
 
         # stride is 6 because we get 6 bytes for each channel; 3 for the output regs
         # and 3 for the eeprom. here we only care about the output buffer so we throw out
@@ -161,6 +158,23 @@ class MCP4728:
 
         return current_values
 
+    def _print_buffer(self, buf):
+        print()
+        for index, value in enumerate(buf):
+            if index %3 == 0:
+                print("\n%4s\t"%index, end="")
+            print("%s %s "%(format(value, '#010b'), hex(value)), end="")
+        print()
+
+
+    def save_settings(self):
+        """Saves the currently selected values, Vref, and gain selections for each channel to the EEPROM, setting them as defaults on power up"""
+        byte_list = []
+        byte_list += self._generate_bytes_with_flags(self.channel_a)
+        byte_list += self._generate_bytes_with_flags(self.channel_b)
+        byte_list += self._generate_bytes_with_flags(self.channel_c)
+        byte_list += self._generate_bytes_with_flags(self.channel_d)
+        self._write_multi_eeprom(byte_list)
 
     # TODO: add the ability to set an offset
     def _write_multi_eeprom(self, byte_list):
@@ -168,30 +182,84 @@ class MCP4728:
         buffer_list += byte_list
 
         buf = bytearray(buffer_list)
+        print("buffers to eeprom:")
+        self._print_buffer(buf)
         with self.i2c_device as i2c:
             i2c.write(buf)
 
         sleep(0.015) # the better to write you with
 
+    def _set_vrefs(self):
+        base_values = 0b100000000
+        base_values |= (self.channel_a.vref<<3)
+        base_values |= (self.channel_b.vref<<2)
+        base_values |= (self.channel_c.vref<<1)
+        base_values |= (self.channel_d.vref)
+        print("VREP VALUES: %s"%(self._lzb(base_values)))
+
+        with self.i2c_device as i2c:
+            i2c.write(bytearray(base_values))
+
+    def _set_gains(self):
+        # [S] 1 1 0 0 A2 A1 A0 0 
+        # [A] 1 1 0 X GXA GXB GXC GXD [A] [P]
+        base_values = 0b110000000
+        base_values |= (self.channel_a.gain<<3)
+        base_values |= (self.channel_b.gain<<2)
+        base_values |= (self.channel_c.gain<<1)
+        base_values |= (self.channel_d.gain)
+        print("GAINZ VALUES: %s"%(self._lzb(base_values)))
+
+        with self.i2c_device as i2c:
+            i2c.write(bytearray(base_values))
+
+    def _set_value(self, channel):
+
+        channel_bytes = self._generate_bytes_with_flags(channel)
+
+        write_command_byte = 0b01000000 # 0 1 0 0 0 DAC1 DAC0 UDAC
+        write_command_byte |= (channel._channel_index<<1)
+
+        channel_bytes.insert(0, write_command_byte)
+        # print("sending buffer:")
+        # self._print_buffer(channel_bytes)
+        with self.i2c_device as i2c:
+            i2c.write(bytearray(channel_bytes))
+
+    def _generate_bytes_with_flags(self, channel):
+        buf = bytearray(2)
+        pack_into(">H", buf, 0, channel.raw_value)
+        # print("Value is ", channel.raw_value)
+        # print("packed into buffer:")
+        # self._print_buffer(buf)
+
+        buf[0] |= channel.vref << 7
+        buf[0] |= channel.gain << 4
+        # print("after setting of flags:")
+        # self._print_buffer(buf)
+        return buf
 
 class Channel:
     """An instance of a single channel for a multi-channel DAC"""
-    def __init__(self, cache_page):
+    def __init__(self, dac_instance, cache_page, index):
+        print("Channel", index, "cache_page:", cache_page)
         self._vref = cache_page['vref']
         self._gain = cache_page['gain']
         self._raw_value = cache_page['value']
+        self._dac = dac_instance
+        self._channel_index = index
 
     @property
     def normalized_value(self):
         """The DAC value as a floating point number in the range 0.0 to 1.0."""
-        return self._raw_value / (2**12-1)
+        return self.raw_value / (2**12-1)
 
     @normalized_value.setter
     def normalized_value(self, value):
         if value < 0.0 or value > 1.0:
             raise AttributeError("`normalized_value` must be between 0.0 and 1.0")
 
-        self._raw_value = int(value * 4095.0)
+        self.raw_value = int(value * 4095.0)
 
     @property
     def value(self):
@@ -205,7 +273,7 @@ class Channel:
             raise AttributeError("`value` must be a 16-bit integer between 0 and %s"%(2**16-1))
 
         # Scale from 16-bit to 12-bit value (quantization errors will occur!).
-        self._raw_value = value >> 4
+        self.raw_value = value >> 4
 
     @property
     def raw_value(self):
@@ -217,6 +285,7 @@ class Channel:
         if value < 0 or value > (2**12-1):
             raise AttributeError("`raw_value` must be a 12-bit integer between 0 and %s"%(2**12-1))
         self._raw_value = value
+        self._dac._set_value(self)
 
     @property
     def gain(self):
@@ -227,7 +296,9 @@ class Channel:
     def gain(self, value):
         if value < 1 or value > 2:
             raise AttributeError("`gain` must be 1 or 2")
-        self._vref = value
+        self._gain = value-1
+        # needs to call gain setter with all gains.
+        self._dac._set_gains()
 
     @property
     def vref(self):
@@ -239,3 +310,4 @@ class Channel:
         if value < 0 or value > 3:
             raise AttributeError("`vref` must be a ``VREF``")
         self._vref = value
+        self._dac._set_vrefs()
