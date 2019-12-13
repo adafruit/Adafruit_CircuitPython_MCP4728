@@ -22,7 +22,6 @@ This driver depends on:
 
 * `Adafruit CircuitPython <https://github.com/adafruit/circuitpython>`_
 * `Bus Device <https://github.com/adafruit/Adafruit_CircuitPython_BusDevice>`_
-* `Register <https://github.com/adafruit/Adafruit_CircuitPython_Register>`_
 
 Please ensure all dependencies are available on the CircuitPython filesystem.
 This is easily achieved by downloading
@@ -56,7 +55,23 @@ To install in a virtual environment in your current project:
 Usage Example
 =============
 
-.. todo:: Add a quick, simple example. It and other examples should live in the examples folder and be included in docs/examples.rst.
+.. code-block:: python3
+
+    import board
+    import busio
+    import adafruit_mcp4728
+
+    i2c = busio.I2C(board.SCL, board.SDA)
+    mcp4728 =  adafruit_mcp4728.MCP4728(i2c)
+
+    mcp4728.channel_a.value = 65535 # Voltage = VDD
+    mcp4728.channel_b.value = int(65535/2) # VDD/2
+    mcp4728.channel_c.value = int(65535/4) # VDD/4
+
+    mcp4728.channel_d.value = int(65535/4) # Vref.INTERNAL/4 * 2 => 2.048/4 * 2 = 2.048/2 =  ~ 1.024V
+
+
+    mcp4728.save_settings() # save the current values to the eeprom,making them the default on power up
 
 Contributing
 ============
