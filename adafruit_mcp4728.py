@@ -49,31 +49,9 @@ from struct import pack_into
 from time import sleep
 import adafruit_bus_device.i2c_device as i2c_device
 from adafruit_register.i2c_struct import UnaryStruct
+import traceback
 
 _MCP4728_DEFAULT_ADDRESS = 0x60
-
-"""
-# DAC1, DAC0 DAC Channel Selection bits:
-# 00 = Channel A
-# 01 = Channel B
-# 10 = Channel C
-# 11 = Channel D
-
-0 = slave addr(auto)
-0 1 0 0 0 DAC1 DAC0 UDAC[A]
-01000 + 00 + UDAC =
-0b01000000 = 0x40 (+2 for each successive)
-VREF PD1 PD0 Gx D11 D10 D9 D8 [A]
-D7 D6 D5 D4 D3 D2 D1 D0 [A]
-
-0 1 0 0 0 Multi-Write for DAC
-0 1 0 1 0 Sequential Write for DAC Input Registers and EEPROM
-0 1 0 1 1 Single Write for DAC Input Register and EEPROM
-
-1 0 0 0 0 Write Reference (VREF) selection bits to Input Registers
-1 1 0 0 0 Write Gain selection bits to Input Registers
-1 0 1 0 0 Write Power-Down bits to Input Registers
-"""
 
 _MCP4728_CH_A_MULTI_IB = 0x40
 _MCP4728_CH_B_MULTI_IB = 0x42
@@ -87,8 +65,35 @@ _MCP4728_CH_D_SINGLE_EEPROM = 0x5E
 
 _MCP4728_CH_A_MULTI_EEPROM = 0x50
 
-#TODO: REMOVE THIS
-#pylint: disable=unused-variable,no-self-use,invalid-name,too-few-public-methods
+class CV:
+    """struct helper"""
+
+    @classmethod
+    def add_values(cls, value_tuples):
+        "creates CV entires"
+        cls.string = {}
+        cls.lsb = {}
+
+        for value_tuple in value_tuples:
+            name, value, string, lsb = value_tuple
+            setattr(cls, name, value)
+            cls.string[value] = string
+            cls.lsb[value] = lsb
+
+    @classmethod
+    def is_valid(cls, value):
+        "Returns true if the given value is a member of the CV"
+        return value in cls.string
+
+class Vref(CV):
+    """Options for ``vref``"""
+    pass #pylint: disable=unnecessary-pass
+
+Vref.add_values((
+    ('VDD', 0, "VDD", None),
+    ('INTERNAL', 1, "Internal 2.048V", None),
+))
+
 class MCP4728:
     """Helper library for the Microchip MCP4728 I2C 12-bit Quad DAC.
 
@@ -111,16 +116,13 @@ class MCP4728:
     def __init__(self, i2c_bus, address=_MCP4728_DEFAULT_ADDRESS):
 
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
-        self._create_channels()
+        
+        raw_registers = self._read_registers()
 
-    def _chunk(self, l, n):
-        # For item i in a range that is a length of l,
-        for i in range(0, len(l), n):
-            # Create an index range for l of n items:
-            yield l[i:i+n]
-
-    def _lzb(self, byte_val): # leading zero bin
-        return format(byte_val, '#010b')
+        self.channel_a = Channel(self, self._cache_page(*raw_registers[0]), 0)
+        self.channel_b = Channel(self, self._cache_page(*raw_registers[1]), 1)
+        self.channel_c = Channel(self, self._cache_page(*raw_registers[2]), 2)
+        self.channel_d = Channel(self, self._cache_page(*raw_registers[3]), 3)
 
     def _get_flags(self, high_byte):
         vref = (high_byte & 1<<7) > 0
@@ -130,14 +132,6 @@ class MCP4728:
 
     def _cache_page(self, value, vref, gain, pd):
         return {"value": value, "vref": vref, "gain": gain, "pd": pd}
-
-    def _create_channels(self):
-        raw_registers = self._read_registers()
-
-        self.channel_a = Channel(self, self._cache_page(*raw_registers[0]), 0)
-        self.channel_b = Channel(self, self._cache_page(*raw_registers[1]), 1)
-        self.channel_c = Channel(self, self._cache_page(*raw_registers[2]), 2)
-        self.channel_d = Channel(self, self._cache_page(*raw_registers[3]), 3)
 
     def _read_registers(self):
         buf = bytearray(24)
@@ -182,36 +176,51 @@ class MCP4728:
         buffer_list += byte_list
 
         buf = bytearray(buffer_list)
-        print("buffers to eeprom:")
         self._print_buffer(buf)
         with self.i2c_device as i2c:
             i2c.write(buf)
 
         sleep(0.015) # the better to write you with
 
-    def _set_vrefs(self):
-        base_values = 0b100000000
+    def _sync_vrefs(self):
+        base_values = 0b10000000
         base_values |= (self.channel_a.vref<<3)
         base_values |= (self.channel_b.vref<<2)
         base_values |= (self.channel_c.vref<<1)
         base_values |= (self.channel_d.vref)
-        print("VREP VALUES: %s"%(self._lzb(base_values)))
+        
+        print("vref values:")
+        print(base_values)
+        print(self._lzb(base_values))
 
+        buf = bytearray(1)
+        pack_into(">B", buf, 0, base_values)        
+        print("buf bytes:")
+        self._print_buffer(buf)
         with self.i2c_device as i2c:
-            i2c.write(bytearray(base_values))
+            i2c.write(buf)
 
-    def _set_gains(self):
+    def _sync_gains(self):
         # [S] 1 1 0 0 A2 A1 A0 0 
         # [A] 1 1 0 X GXA GXB GXC GXD [A] [P]
-        base_values = 0b110000000
+        base_values = 0b11000000
         base_values |= (self.channel_a.gain<<3)
         base_values |= (self.channel_b.gain<<2)
         base_values |= (self.channel_c.gain<<1)
         base_values |= (self.channel_d.gain)
-        print("GAINZ VALUES: %s"%(self._lzb(base_values)))
+
+
+        print("gain values:")
+        print(base_values)
+        print(self._lzb(base_values))
+
+        buf = bytearray(1)
+        pack_into(">B", buf, 0, base_values)        
+        print("buf bytes:")
+        self._print_buffer(buf)
 
         with self.i2c_device as i2c:
-            i2c.write(bytearray(base_values))
+            i2c.write(buf)
 
     def _set_value(self, channel):
 
@@ -221,28 +230,33 @@ class MCP4728:
         write_command_byte |= (channel._channel_index<<1)
 
         channel_bytes.insert(0, write_command_byte)
-        # print("sending buffer:")
-        # self._print_buffer(channel_bytes)
+
         with self.i2c_device as i2c:
             i2c.write(bytearray(channel_bytes))
 
     def _generate_bytes_with_flags(self, channel):
         buf = bytearray(2)
         pack_into(">H", buf, 0, channel.raw_value)
-        # print("Value is ", channel.raw_value)
-        # print("packed into buffer:")
-        # self._print_buffer(buf)
 
         buf[0] |= channel.vref << 7
         buf[0] |= channel.gain << 4
-        # print("after setting of flags:")
-        # self._print_buffer(buf)
+
         return buf
 
+    def _chunk(self, l, n):
+        # For item i in a range that is a length of l,
+        for i in range(0, len(l), n):
+            # Create an index range for l of n items:
+            yield l[i:i+n]
+
+    def _lzb(self, byte_val): # leading zero bin
+        return format(byte_val, '#010b')
+    def _bt(self):
+        for line in traceback.format_stack():
+            print(line.strip())
 class Channel:
     """An instance of a single channel for a multi-channel DAC"""
     def __init__(self, dac_instance, cache_page, index):
-        print("Channel", index, "cache_page:", cache_page)
         self._vref = cache_page['vref']
         self._gain = cache_page['gain']
         self._raw_value = cache_page['value']
@@ -289,16 +303,15 @@ class Channel:
 
     @property
     def gain(self):
-        """Sets the gain of the channel. Must be 1 or 2"""
+        """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``. *The gain setting has no effect if the Vref for the channel is `Vref.VDD`*. With gain set to 1, the output voltage goes from 0v to 2.048V. If a channe's gain is set to 2, the voltage goes from 0v to 4.096V. `gain` Must be 1 or 2"""
         return self._gain
 
     @gain.setter
     def gain(self, value):
-        if value < 1 or value > 2:
+        if value != 1 and value != 2:
             raise AttributeError("`gain` must be 1 or 2")
         self._gain = value-1
-        # needs to call gain setter with all gains.
-        self._dac._set_gains()
+        self._dac._sync_gains()
 
     @property
     def vref(self):
@@ -307,7 +320,7 @@ class Channel:
 
     @vref.setter
     def vref(self, value):
-        if value < 0 or value > 3:
-            raise AttributeError("`vref` must be a ``VREF``")
+        if not Vref.is_valid(value):
+            raise AttributeError("range must be a `Vref`")
         self._vref = value
-        self._dac._set_vrefs()
+        self._dac._sync_vrefs()
