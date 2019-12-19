@@ -186,10 +186,11 @@ class MCP4728:
         write_command_byte = 0b01000000 # 0 1 0 0 0 DAC1 DAC0 UDAC
         write_command_byte |= (channel.channel_index<<1)
 
-        channel_bytes.insert(0, write_command_byte)
+        output_buffer = bytearray([write_command_byte])
+        output_buffer.extend(channel_bytes)
 
         with self.i2c_device as i2c:
-            i2c.write(bytearray(channel_bytes))
+            i2c.write(output_buffer)
 
     @staticmethod
     def _generate_bytes_with_flags(channel):
