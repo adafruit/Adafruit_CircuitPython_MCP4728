@@ -53,6 +53,7 @@ _MCP4728_DEFAULT_ADDRESS = 0x60
 
 _MCP4728_CH_A_MULTI_EEPROM = 0x50
 
+
 class CV:
     """struct helper"""
 
@@ -73,14 +74,15 @@ class CV:
         "Returns true if the given value is a member of the CV"
         return value in cls.string
 
+
 class Vref(CV):
     """Options for ``vref``"""
-    pass #pylint: disable=unnecessary-pass
 
-Vref.add_values((
-    ('VDD', 0, "VDD", None),
-    ('INTERNAL', 1, "Internal 2.048V", None),
-))
+    pass  # pylint: disable=unnecessary-pass
+
+
+Vref.add_values((("VDD", 0, "VDD", None), ("INTERNAL", 1, "Internal 2.048V", None),))
+
 
 class MCP4728:
     """Helper library for the Microchip MCP4728 I2C 12-bit Quad DAC.
@@ -103,9 +105,9 @@ class MCP4728:
 
     @staticmethod
     def _get_flags(high_byte):
-        vref = (high_byte & 1<<7) > 0
-        gain = (high_byte & 1<<4) > 0
-        power_state = (high_byte & 0b011<<5)>>5
+        vref = (high_byte & 1 << 7) > 0
+        gain = (high_byte & 1 << 4) > 0
+        power_state = (high_byte & 0b011 << 5) >> 5
         return (vref, gain, power_state)
 
     @staticmethod
@@ -122,7 +124,9 @@ class MCP4728:
         # and 3 for the eeprom. Here we only care about the output regoster so we throw out
         # the eeprom values as 'n/a'
         current_values = []
-        for header, high_byte, low_byte, na_1, na_2, na_3 in self._chunk(buf, 6):#pylint:disable=unused-variable
+        # pylint:disable=unused-variable
+        for header, high_byte, low_byte, na_1, na_2, na_3 in self._chunk(buf, 6):
+            # pylint:enable=unused-variable
             value = (high_byte & 0b00001111) << 8 | low_byte
             vref, gain, power_state = self._get_flags(high_byte)
             current_values.append((value, vref, gain, power_state))
@@ -149,15 +153,15 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
-        sleep(0.015) # the better to write you with
+        sleep(0.015)  # the better to write you with
 
     def sync_vrefs(self):
         """Syncs the driver's vref state with the DAC"""
         gain_setter_command = 0b10000000
-        gain_setter_command |= (self.channel_a.vref<<3)
-        gain_setter_command |= (self.channel_b.vref<<2)
-        gain_setter_command |= (self.channel_c.vref<<1)
-        gain_setter_command |= (self.channel_d.vref)
+        gain_setter_command |= self.channel_a.vref << 3
+        gain_setter_command |= self.channel_b.vref << 2
+        gain_setter_command |= self.channel_c.vref << 1
+        gain_setter_command |= self.channel_d.vref
 
         buf = bytearray(1)
         pack_into(">B", buf, 0, gain_setter_command)
@@ -168,10 +172,10 @@ class MCP4728:
         """Syncs the driver's gain state with the DAC"""
 
         sync_setter_command = 0b11000000
-        sync_setter_command |= (self.channel_a.gain<<3)
-        sync_setter_command |= (self.channel_b.gain<<2)
-        sync_setter_command |= (self.channel_c.gain<<1)
-        sync_setter_command |= (self.channel_d.gain)
+        sync_setter_command |= self.channel_a.gain << 3
+        sync_setter_command |= self.channel_b.gain << 2
+        sync_setter_command |= self.channel_c.gain << 1
+        sync_setter_command |= self.channel_d.gain
 
         buf = bytearray(1)
         pack_into(">B", buf, 0, sync_setter_command)
@@ -183,8 +187,8 @@ class MCP4728:
 
         channel_bytes = self._generate_bytes_with_flags(channel)
 
-        write_command_byte = 0b01000000 # 0 1 0 0 0 DAC1 DAC0 UDAC
-        write_command_byte |= (channel.channel_index<<1)
+        write_command_byte = 0b01000000  # 0 1 0 0 0 DAC1 DAC0 UDAC
+        write_command_byte |= channel.channel_index << 1
 
         output_buffer = bytearray([write_command_byte])
         output_buffer.extend(channel_bytes)
@@ -206,23 +210,25 @@ class MCP4728:
     def _chunk(big_list, chunk_size):
         """Divides a given list into `chunk_size` sized chunks"""
         for i in range(0, len(big_list), chunk_size):
-            yield big_list[i:i+chunk_size]
+            yield big_list[i : i + chunk_size]
+
 
 class Channel:
     """An instance of a single channel for a multi-channel DAC.
 
     **All available channels are created automatically and should not be created by the user**"""
+
     def __init__(self, dac_instance, cache_page, index):
-        self._vref = cache_page['vref']
-        self._gain = cache_page['gain']
-        self._raw_value = cache_page['value']
+        self._vref = cache_page["vref"]
+        self._gain = cache_page["gain"]
+        self._raw_value = cache_page["value"]
         self._dac = dac_instance
         self.channel_index = index
 
     @property
     def normalized_value(self):
         """The DAC value as a floating point number in the range 0.0 to 1.0."""
-        return self.raw_value / (2**12-1)
+        return self.raw_value / (2 ** 12 - 1)
 
     @normalized_value.setter
     def normalized_value(self, value):
@@ -235,12 +241,14 @@ class Channel:
     def value(self):
         """The 16-bit scaled current value for the channel. Note that the MCP4728 is a 12-bit piece
         so quantization errors will occour"""
-        return self.normalized_value * (2**16-1)
+        return self.normalized_value * (2 ** 16 - 1)
 
     @value.setter
     def value(self, value):
-        if value < 0 or value > (2**16-1):
-            raise AttributeError("`value` must be a 16-bit integer between 0 and %s"%(2**16-1))
+        if value < 0 or value > (2 ** 16 - 1):
+            raise AttributeError(
+                "`value` must be a 16-bit integer between 0 and %s" % (2 ** 16 - 1)
+            )
 
         # Scale from 16-bit to 12-bit value (quantization errors will occur!).
         self.raw_value = value >> 4
@@ -252,12 +260,14 @@ class Channel:
 
     @raw_value.setter
     def raw_value(self, value):
-        if value < 0 or value > (2**12-1):
-            raise AttributeError("`raw_value` must be a 12-bit integer between 0 and %s"%(2**12-1))
+        if value < 0 or value > (2 ** 12 - 1):
+            raise AttributeError(
+                "`raw_value` must be a 12-bit integer between 0 and %s" % (2 ** 12 - 1)
+            )
         self._raw_value = value
         # disabling the protected access warning here because making it public would be
         # more confusing
-        self._dac._set_value(self) #pylint:disable=protected-access
+        self._dac._set_value(self)  # pylint:disable=protected-access
 
     @property
     def gain(self):
@@ -272,7 +282,7 @@ class Channel:
     def gain(self, value):
         if not value in (1, 2):
             raise AttributeError("`gain` must be 1 or 2")
-        self._gain = value-1
+        self._gain = value - 1
         self._dac.sync_gains()
 
     @property
