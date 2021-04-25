@@ -3,10 +3,9 @@
 
 from time import sleep
 import board
-import busio
 import adafruit_mcp4728
 
-i2c = busio.I2C(board.SCL, board.SDA)
+i2c = board.I2C()  # uses board.SCL and board.SDA
 mcp4728 = adafruit_mcp4728.MCP4728(i2c)
 
 FULL_VREF_RAW_VALUE = 4095

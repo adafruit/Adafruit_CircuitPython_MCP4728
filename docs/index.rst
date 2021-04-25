@@ -23,11 +23,12 @@ Table of Contents
 .. toctree::
     :caption: Tutorials
 
+    Adafruit MCP4728 Quad DAC with EEPROM Learning Guide <https://learn.adafruit.com/adafruit-mcp4728-i2c-quad-dac>
+
 .. toctree::
     :caption: Related Products
 
-    Adafruit MCP4728 Breakout <https://www.adafruit.com/product/44xx>
-
+    Adafruit MCP4728 Quad DAC with EEPROM <https://www.adafruit.com/product/44728>
 
 .. toctree::
     :caption: Other Links

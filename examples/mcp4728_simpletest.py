@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 import board
-import busio
 import adafruit_mcp4728
 
-i2c = busio.I2C(board.SCL, board.SDA)
+i2c = board.I2C()  # uses board.SCL and board.SDA
 mcp4728 = adafruit_mcp4728.MCP4728(i2c)
 
 mcp4728.channel_a.value = 65535  # Voltage = VDD

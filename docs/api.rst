@@ -6,3 +6,5 @@
 
 .. automodule:: adafruit_mcp4728
    :members:
+   :member-order: bysource
+   :exclude-members: CV, Vref
