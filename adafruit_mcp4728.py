@@ -16,7 +16,7 @@ Implementation Notes
 
 **Hardware:**
 
-* Adafruit's MCP4728 Breakout: https://adafruit.com/product/44XX
+* Adafruit's MCP4728 Breakout: https://adafruit.com/product/4728
 
 **Software and Dependencies:**
 
@@ -42,7 +42,7 @@ class CV:
 
     @classmethod
     def add_values(cls, value_tuples):
-        "creates CV entires"
+        """creates CV entries"""
         cls.string = {}
         cls.lsb = {}
 
@@ -54,7 +54,7 @@ class CV:
 
     @classmethod
     def is_valid(cls, value):
-        "Returns true if the given value is a member of the CV"
+        """Returns true if the given value is a member of the CV"""
         return value in cls.string
 
 
@@ -76,7 +76,34 @@ class MCP4728:
     """Helper library for the Microchip MCP4728 I2C 12-bit Quad DAC.
 
     :param ~busio.I2C i2c_bus: The I2C bus the MCP4728 is connected to.
-    :param address: The I2C slave address of the sensor
+    :param int address: The I2C device address. Defaults to :const:`0x60`
+
+
+    **Quickstart: Importing and using the MCP4728**
+
+        Here is an example of using the :class:`MCP4728` class.
+        First you will need to import the libraries to use the sensor
+
+        .. code-block:: python
+
+            import board
+            import adafruit_mcp4728
+
+        Once this is done you can define your `board.I2C` object and define your sensor object
+
+        .. code-block:: python
+
+            i2c = board.I2C()   # uses board.SCL and board.SDA
+            mcp4728 = adafruit_mcp4728.MCP4728(i2c)
+
+        Now you have can give values to the different channels
+
+        .. code-block:: python
+
+            mcp4728.channel_a.value = 65535  # Voltage = VDD
+            mcp4728.channel_b.value = int(65535 / 2)  # VDD/2
+            mcp4728.channel_c.value = int(65535 / 4)  # VDD/4
+            mcp4728.channel_d.value = 0  # 0V
 
     """
 
@@ -109,7 +136,7 @@ class MCP4728:
             i2c.readinto(buf)
 
         # stride is 6 because we get 6 bytes for each channel; 3 for the output regs
-        # and 3 for the eeprom. Here we only care about the output regoster so we throw out
+        # and 3 for the eeprom. Here we only care about the output register so we throw out
         # the eeprom values as 'n/a'
         current_values = []
         # pylint:disable=unused-variable
@@ -204,7 +231,16 @@ class MCP4728:
 class Channel:
     """An instance of a single channel for a multi-channel DAC.
 
-    **All available channels are created automatically and should not be created by the user**"""
+    :param dac_instance: Instance of the channel object
+    :param cache_page: cache page of the channel
+    :param index: Index of the channel
+
+    .. note::
+        All available channels are created automatically
+        and should not be created by the user
+
+
+    """
 
     def __init__(self, dac_instance, cache_page, index):
         self._vref = cache_page["vref"]
@@ -228,7 +264,7 @@ class Channel:
     @property
     def value(self):
         """The 16-bit scaled current value for the channel. Note that the MCP4728 is a 12-bit piece
-        so quantization errors will occour"""
+        so quantization errors will occur"""
         return self.normalized_value * (2 ** 16 - 1)
 
     @value.setter
@@ -262,8 +298,8 @@ class Channel:
         """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
         **The gain setting has no effect if the Vref for the channel is `Vref.VDD`**.
 
-        With gain set to 1, the output voltage goes from 0v to 2.048V. If a channe's gain is set
-        to 2, the voltage goes from 0v to 4.096V. `gain` Must be 1 or 2"""
+        With gain set to 1, the output voltage goes from 0v to 2.048V. If a channel's gain is set
+        to 2, the voltage goes from 0V to 4.096V. :attr:`gain` Must be 1 or 2"""
         return self._gain
 
     @gain.setter
