@@ -36,6 +36,14 @@ _MCP4728_DEFAULT_ADDRESS = 0x60
 
 _MCP4728_CH_A_MULTI_EEPROM = 0x50
 
+_MCP4728_GENERAL_CALL_ADDRESS = 0x00
+
+_MCP4728_GENERAL_CALL_RESET_COMMAND = 0x06
+
+_MCP4728_GENERAL_CALL_WAKEUP_COMMAND = 0x09
+
+_MCP4728_GENERAL_CALL_SOFTWARE_UPDATE_COMMAND = 0x08
+
 
 class CV:
     """struct helper"""
@@ -226,6 +234,35 @@ class MCP4728:
         """Divides a given list into `chunk_size` sized chunks"""
         for i in range(0, len(big_list), chunk_size):
             yield big_list[i : i + chunk_size]
+
+    def _general_call(self, byte_command):
+        buffer_list = [_MCP4728_GENERAL_CALL_ADDRESS]
+        buffer_list += [byte_command]
+
+        buf = bytearray(buffer_list)
+
+        with self.i2c_device as i2c:
+            i2c.write(buf)
+
+    def reset(self):
+        """Internal Reset similar to a Power-on Reset (POR).
+        The contents of the EEPROM are loaded into each DAC input
+        and output registers immediately"""
+
+        self._general_call(_MCP4728_GENERAL_CALL_RESET_COMMAND)
+
+    def wakeup(self):
+        """Reset the Power-Down bits (PD1, PD0 = 0,0) and
+        Resumes Normal Operation mode"""
+
+        self._general_call(_MCP4728_GENERAL_CALL_WAKEUP_COMMAND)
+
+    def soft_update(self):
+        """Updates all DAC analog outputs (VOUT) at the same time."""
+
+        self._general_call(_MCP4728_GENERAL_CALL_SOFTWARE_UPDATE_COMMAND)
+
+    # TODO : general_call read address
 
 
 class Channel:
