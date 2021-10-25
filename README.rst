@@ -72,6 +72,11 @@ Usage Example
     mcp4728.save_settings() # save the current values to the eeprom,making them the default on power up
 
 
+Documentation
+=============
+
+API documentation for this library can be found on `Read the Docs <https://circuitpython.readthedocs.io/projects/mcp4728/en/latest/>`_.
+
 Contributing
 ============
 
