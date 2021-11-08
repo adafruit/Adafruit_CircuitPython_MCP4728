@@ -30,7 +30,7 @@ __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP4728.git"
 
 from struct import pack_into
 from time import sleep
-import adafruit_bus_device.i2c_device as i2c_device
+from adafruit_bus_device import i2c_device
 
 _MCP4728_DEFAULT_ADDRESS = 0x60
 
