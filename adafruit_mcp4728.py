@@ -115,7 +115,7 @@ class MCP4728:
 
     """
 
-    def __init__(self, i2c_bus, address=_MCP4728_DEFAULT_ADDRESS):
+    def __init__(self, i2c_bus, address: int = _MCP4728_DEFAULT_ADDRESS):
 
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
 
@@ -289,7 +289,7 @@ class Channel:
     @property
     def normalized_value(self):
         """The DAC value as a floating point number in the range 0.0 to 1.0."""
-        return self.raw_value / (2**12 - 1)
+        return self.raw_value / (2 ** 12 - 1)
 
     @normalized_value.setter
     def normalized_value(self, value):
@@ -302,13 +302,13 @@ class Channel:
     def value(self):
         """The 16-bit scaled current value for the channel. Note that the MCP4728 is a 12-bit piece
         so quantization errors will occur"""
-        return self.normalized_value * (2**16 - 1)
+        return self.normalized_value * (2 ** 16 - 1)
 
     @value.setter
     def value(self, value):
-        if value < 0 or value > (2**16 - 1):
+        if value < 0 or value > (2 ** 16 - 1):
             raise AttributeError(
-                "`value` must be a 16-bit integer between 0 and %s" % (2**16 - 1)
+                "`value` must be a 16-bit integer between 0 and %s" % (2 ** 16 - 1)
             )
 
         # Scale from 16-bit to 12-bit value (quantization errors will occur!).
@@ -321,9 +321,9 @@ class Channel:
 
     @raw_value.setter
     def raw_value(self, value):
-        if value < 0 or value > (2**12 - 1):
+        if value < 0 or value > (2 ** 12 - 1):
             raise AttributeError(
-                "`raw_value` must be a 12-bit integer between 0 and %s" % (2**12 - 1)
+                "`raw_value` must be a 12-bit integer between 0 and %s" % (2 ** 12 - 1)
             )
         self._raw_value = value
         # disabling the protected access warning here because making it public would be
