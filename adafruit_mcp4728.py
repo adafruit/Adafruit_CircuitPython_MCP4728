@@ -32,7 +32,9 @@ from struct import pack_into
 from time import sleep
 from adafruit_bus_device import i2c_device
 
-_MCP4728_DEFAULT_ADDRESS = 0x60
+MCP4728_DEFAULT_ADDRESS = 0x60
+
+MCP4728A4_DEFAULT_ADDRESS = 0x64
 
 _MCP4728_CH_A_MULTI_EEPROM = 0x50
 
@@ -115,7 +117,7 @@ class MCP4728:
 
     """
 
-    def __init__(self, i2c_bus, address: int = _MCP4728_DEFAULT_ADDRESS):
+    def __init__(self, i2c_bus, address: int = MCP4728_DEFAULT_ADDRESS):
 
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
 
