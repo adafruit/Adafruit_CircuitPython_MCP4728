@@ -13,6 +13,7 @@ mcp4728.channel_c.value = int(65535 / 4)  # VDD/4
 mcp4728.channel_d.value = 0  # 0V
 
 mcp4728.save_settings()  # save current voltages into EEPROM
+
 print("Settings Saved into EEPROM")
 
 input("Press Enter to modify the channel outputs...")
