@@ -347,7 +347,7 @@ class Channel:
         self._dac._set_value(self)  # pylint:disable=protected-access
 
     @property
-    def gain(self) -> Union(1, 2):
+    def gain(self) -> Union[1, 2]:
         """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
         **The gain setting has no effect if the Vref for the channel is `Vref.VDD`**.
 
@@ -363,7 +363,7 @@ class Channel:
         self._dac.sync_gains()
 
     @property
-    def vref(self) -> Union(0, 1):
+    def vref(self) -> Union[0, 1]:
         """Sets the DAC's voltage reference source. Must be a ``VREF``"""
         return self._vref
 
