@@ -231,7 +231,7 @@ class MCP4728:
             i2c.write(output_buffer)
 
     @staticmethod
-    def _generate_bytes_with_flags(channel: Channel) -> bytearray:
+    def _generate_bytes_with_flags(channel: "Channel") -> bytearray:
         buf = bytearray(2)
         pack_into(">H", buf, 0, channel.raw_value)
 
