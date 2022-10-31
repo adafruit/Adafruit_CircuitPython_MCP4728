@@ -33,7 +33,7 @@ from time import sleep
 from adafruit_bus_device import i2c_device
 
 try:
-    from typing import Dict, Iterable, List, Optional, Tuple
+    from typing import Dict, Iterable, Iterator, List, Optional, Tuple
     from typing_extensions import Literal
     from busio import I2C
 except ImportError:
@@ -178,7 +178,7 @@ class MCP4728:
         self._write_multi_eeprom(byte_list)
 
     # TODO: add the ability to set an offset
-    def _write_multi_eeprom(self, byte_list) -> None:
+    def _write_multi_eeprom(self, byte_list: List[int]) -> None:
         buffer_list = [_MCP4728_CH_A_MULTI_EEPROM]
         buffer_list += byte_list
 
@@ -217,7 +217,7 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
-    def _set_value(self, channel: int) -> None:
+    def _set_value(self, channel: "Channel") -> None:
 
         channel_bytes = self._generate_bytes_with_flags(channel)
 
@@ -241,7 +241,7 @@ class MCP4728:
         return buf
 
     @staticmethod
-    def _chunk(big_list: bytearray, chunk_size: int) -> bytearray:
+    def _chunk(big_list: bytearray, chunk_size: int) -> Iterator[bytearray]:
         """Divides a given list into `chunk_size` sized chunks"""
         for i in range(0, len(big_list), chunk_size):
             yield big_list[i : i + chunk_size]
