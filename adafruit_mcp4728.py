@@ -33,7 +33,7 @@ from time import sleep
 from adafruit_bus_device import i2c_device
 
 try:
-    from typing import Dict, Iterable, Optional, Tuple, Union
+    from typing import Dict, Iterable, List, Optional, Tuple
     from typing_extensions import Literal
     from busio import I2C
 except ImportError:
@@ -148,7 +148,7 @@ class MCP4728:
     ) -> Dict[str, int]:
         return {"value": value, "vref": vref, "gain": gain, "power_state": power_state}
 
-    def _read_registers(self) -> Iterable[Tuple[int, int, int, int]]:
+    def _read_registers(self) -> List[Tuple[int, int, int, int]]:
         buf = bytearray(24)
 
         with self.i2c_device as i2c:
@@ -347,7 +347,7 @@ class Channel:
         self._dac._set_value(self)  # pylint:disable=protected-access
 
     @property
-    def gain(self) -> Union[1, 2]:
+    def gain(self) -> Literal[1, 2]:
         """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
         **The gain setting has no effect if the Vref for the channel is `Vref.VDD`**.
 
@@ -363,7 +363,7 @@ class Channel:
         self._dac.sync_gains()
 
     @property
-    def vref(self) -> Union[0, 1]:
+    def vref(self) -> Literal[0, 1]:
         """Sets the DAC's voltage reference source. Must be a ``VREF``"""
         return self._vref
 
