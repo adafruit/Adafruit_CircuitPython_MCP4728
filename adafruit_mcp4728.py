@@ -32,6 +32,13 @@ from struct import pack_into
 from time import sleep
 from adafruit_bus_device import i2c_device
 
+try:
+    from typing import Dict, Iterable, Iterator, List, Optional, Tuple
+    from typing_extensions import Literal
+    from busio import I2C
+except ImportError:
+    pass
+
 MCP4728_DEFAULT_ADDRESS = 0x60
 
 MCP4728A4_DEFAULT_ADDRESS = 0x64
@@ -51,7 +58,9 @@ class CV:
     """struct helper"""
 
     @classmethod
-    def add_values(cls, value_tuples):
+    def add_values(
+        cls, value_tuples: Iterable[Tuple[str, int, str, Optional[float]]]
+    ) -> None:
         """creates CV entries"""
         cls.string = {}
         cls.lsb = {}
@@ -63,15 +72,13 @@ class CV:
             cls.lsb[value] = lsb
 
     @classmethod
-    def is_valid(cls, value):
+    def is_valid(cls, value: int) -> bool:
         """Returns true if the given value is a member of the CV"""
         return value in cls.string
 
 
 class Vref(CV):
     """Options for ``vref``"""
-
-    pass  # pylint: disable=unnecessary-pass
 
 
 Vref.add_values(
@@ -117,7 +124,7 @@ class MCP4728:
 
     """
 
-    def __init__(self, i2c_bus, address: int = MCP4728_DEFAULT_ADDRESS):
+    def __init__(self, i2c_bus: I2C, address: int = MCP4728_DEFAULT_ADDRESS) -> None:
 
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
 
@@ -129,17 +136,19 @@ class MCP4728:
         self.channel_d = Channel(self, self._cache_page(*raw_registers[3]), 3)
 
     @staticmethod
-    def _get_flags(high_byte):
+    def _get_flags(high_byte: int) -> Tuple[int, int, int]:
         vref = (high_byte & 1 << 7) > 0
         gain = (high_byte & 1 << 4) > 0
         power_state = (high_byte & 0b011 << 5) >> 5
         return (vref, gain, power_state)
 
     @staticmethod
-    def _cache_page(value, vref, gain, power_state):
+    def _cache_page(
+        value: int, vref: int, gain: int, power_state: int
+    ) -> Dict[str, int]:
         return {"value": value, "vref": vref, "gain": gain, "power_state": power_state}
 
-    def _read_registers(self):
+    def _read_registers(self) -> List[Tuple[int, int, int, int]]:
         buf = bytearray(24)
 
         with self.i2c_device as i2c:
@@ -158,7 +167,7 @@ class MCP4728:
 
         return current_values
 
-    def save_settings(self):
+    def save_settings(self) -> None:
         """Saves the currently selected values, Vref, and gain selections for each channel
         to the EEPROM, setting them as defaults on power up"""
         byte_list = []
@@ -169,7 +178,7 @@ class MCP4728:
         self._write_multi_eeprom(byte_list)
 
     # TODO: add the ability to set an offset
-    def _write_multi_eeprom(self, byte_list):
+    def _write_multi_eeprom(self, byte_list: List[int]) -> None:
         buffer_list = [_MCP4728_CH_A_MULTI_EEPROM]
         buffer_list += byte_list
 
@@ -180,7 +189,7 @@ class MCP4728:
 
         sleep(0.015)  # the better to write you with
 
-    def sync_vrefs(self):
+    def sync_vrefs(self) -> None:
         """Syncs the driver's vref state with the DAC"""
         gain_setter_command = 0b10000000
         gain_setter_command |= self.channel_a.vref << 3
@@ -193,7 +202,7 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
-    def sync_gains(self):
+    def sync_gains(self) -> None:
         """Syncs the driver's gain state with the DAC"""
 
         sync_setter_command = 0b11000000
@@ -208,7 +217,7 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
-    def _set_value(self, channel):
+    def _set_value(self, channel: "Channel") -> None:
 
         channel_bytes = self._generate_bytes_with_flags(channel)
 
@@ -222,7 +231,7 @@ class MCP4728:
             i2c.write(output_buffer)
 
     @staticmethod
-    def _generate_bytes_with_flags(channel):
+    def _generate_bytes_with_flags(channel: "Channel") -> bytearray:
         buf = bytearray(2)
         pack_into(">H", buf, 0, channel.raw_value)
 
@@ -232,12 +241,12 @@ class MCP4728:
         return buf
 
     @staticmethod
-    def _chunk(big_list, chunk_size):
+    def _chunk(big_list: bytearray, chunk_size: int) -> Iterator[bytearray]:
         """Divides a given list into `chunk_size` sized chunks"""
         for i in range(0, len(big_list), chunk_size):
             yield big_list[i : i + chunk_size]
 
-    def _general_call(self, byte_command):
+    def _general_call(self, byte_command: int) -> None:
         buffer_list = [_MCP4728_GENERAL_CALL_ADDRESS]
         buffer_list += [byte_command]
 
@@ -246,20 +255,20 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
-    def reset(self):
+    def reset(self) -> None:
         """Internal Reset similar to a Power-on Reset (POR).
         The contents of the EEPROM are loaded into each DAC input
         and output registers immediately"""
 
         self._general_call(_MCP4728_GENERAL_CALL_RESET_COMMAND)
 
-    def wakeup(self):
+    def wakeup(self) -> None:
         """Reset the Power-Down bits (PD1, PD0 = 0,0) and
         Resumes Normal Operation mode"""
 
         self._general_call(_MCP4728_GENERAL_CALL_WAKEUP_COMMAND)
 
-    def soft_update(self):
+    def soft_update(self) -> None:
         """Updates all DAC analog outputs (VOUT) at the same time."""
 
         self._general_call(_MCP4728_GENERAL_CALL_SOFTWARE_UPDATE_COMMAND)
@@ -281,7 +290,12 @@ class Channel:
 
     """
 
-    def __init__(self, dac_instance, cache_page, index):
+    def __init__(
+        self,
+        dac_instance: Literal[0, 1, 2, 3],
+        cache_page: Dict[str, int],
+        index: int,
+    ) -> None:
         self._vref = cache_page["vref"]
         self._gain = cache_page["gain"]
         self._raw_value = cache_page["value"]
@@ -289,43 +303,43 @@ class Channel:
         self.channel_index = index
 
     @property
-    def normalized_value(self):
+    def normalized_value(self) -> float:
         """The DAC value as a floating point number in the range 0.0 to 1.0."""
         return self.raw_value / (2**12 - 1)
 
     @normalized_value.setter
-    def normalized_value(self, value):
+    def normalized_value(self, value: float) -> None:
         if value < 0.0 or value > 1.0:
             raise AttributeError("`normalized_value` must be between 0.0 and 1.0")
 
         self.raw_value = int(value * 4095.0)
 
     @property
-    def value(self):
+    def value(self) -> int:
         """The 16-bit scaled current value for the channel. Note that the MCP4728 is a 12-bit piece
         so quantization errors will occur"""
         return self.normalized_value * (2**16 - 1)
 
     @value.setter
-    def value(self, value):
+    def value(self, value: int) -> None:
         if value < 0 or value > (2**16 - 1):
             raise AttributeError(
-                "`value` must be a 16-bit integer between 0 and %s" % (2**16 - 1)
+                f"`value` must be a 16-bit integer between 0 and {(2**16 - 1)}"
             )
 
         # Scale from 16-bit to 12-bit value (quantization errors will occur!).
         self.raw_value = value >> 4
 
     @property
-    def raw_value(self):
+    def raw_value(self) -> int:
         """The native 12-bit value used by the DAC"""
         return self._raw_value
 
     @raw_value.setter
-    def raw_value(self, value):
+    def raw_value(self, value: int) -> None:
         if value < 0 or value > (2**12 - 1):
             raise AttributeError(
-                "`raw_value` must be a 12-bit integer between 0 and %s" % (2**12 - 1)
+                f"`raw_value` must be a 12-bit integer between 0 and {(2**12 - 1)}"
             )
         self._raw_value = value
         # disabling the protected access warning here because making it public would be
@@ -333,7 +347,7 @@ class Channel:
         self._dac._set_value(self)  # pylint:disable=protected-access
 
     @property
-    def gain(self):
+    def gain(self) -> Literal[1, 2]:
         """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
         **The gain setting has no effect if the Vref for the channel is `Vref.VDD`**.
 
@@ -342,19 +356,19 @@ class Channel:
         return self._gain
 
     @gain.setter
-    def gain(self, value):
+    def gain(self, value: Literal[1, 2]) -> None:
         if not value in (1, 2):
             raise AttributeError("`gain` must be 1 or 2")
         self._gain = value - 1
         self._dac.sync_gains()
 
     @property
-    def vref(self):
+    def vref(self) -> Literal[0, 1]:
         """Sets the DAC's voltage reference source. Must be a ``VREF``"""
         return self._vref
 
     @vref.setter
-    def vref(self, value):
+    def vref(self, value: Literal[0, 1]) -> None:
         if not Vref.is_valid(value):
             raise AttributeError("range must be a `Vref`")
         self._vref = value
