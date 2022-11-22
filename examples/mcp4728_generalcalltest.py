@@ -5,6 +5,7 @@ import board
 import adafruit_mcp4728
 
 i2c = board.I2C()  # uses board.SCL and board.SDA
+# i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
 mcp4728 = adafruit_mcp4728.MCP4728(i2c)
 
 mcp4728.channel_a.value = 65535  # Voltage = VDD
