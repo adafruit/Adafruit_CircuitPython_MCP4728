@@ -125,7 +125,6 @@ class MCP4728:
     """
 
     def __init__(self, i2c_bus: I2C, address: int = MCP4728_DEFAULT_ADDRESS) -> None:
-
         self.i2c_device = i2c_device.I2CDevice(i2c_bus, address)
 
         raw_registers = self._read_registers()
@@ -218,7 +217,6 @@ class MCP4728:
             i2c.write(buf)
 
     def _set_value(self, channel: "Channel") -> None:
-
         channel_bytes = self._generate_bytes_with_flags(channel)
 
         write_command_byte = 0b01000000  # 0 1 0 0 0 DAC1 DAC0 UDAC
