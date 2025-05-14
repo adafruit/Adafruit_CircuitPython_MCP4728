@@ -30,12 +30,14 @@ __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MCP4728.git"
 
 from struct import pack_into
 from time import sleep
+
 from adafruit_bus_device import i2c_device
 
 try:
     from typing import Dict, Iterable, Iterator, List, Optional, Tuple
-    from typing_extensions import Literal
+
     from busio import I2C
+    from typing_extensions import Literal
 except ImportError:
     pass
 
@@ -58,9 +60,7 @@ class CV:
     """struct helper"""
 
     @classmethod
-    def add_values(
-        cls, value_tuples: Iterable[Tuple[str, int, str, Optional[float]]]
-    ) -> None:
+    def add_values(cls, value_tuples: Iterable[Tuple[str, int, str, Optional[float]]]) -> None:
         """creates CV entries"""
         cls.string = {}
         cls.lsb = {}
@@ -142,9 +142,7 @@ class MCP4728:
         return (vref, gain, power_state)
 
     @staticmethod
-    def _cache_page(
-        value: int, vref: int, gain: int, power_state: int
-    ) -> Dict[str, int]:
+    def _cache_page(value: int, vref: int, gain: int, power_state: int) -> Dict[str, int]:
         return {"value": value, "vref": vref, "gain": gain, "power_state": power_state}
 
     def _read_registers(self) -> List[Tuple[int, int, int, int]]:
@@ -321,9 +319,7 @@ class Channel:
     @value.setter
     def value(self, value: int) -> None:
         if value < 0 or value > (2**16 - 1):
-            raise AttributeError(
-                f"`value` must be a 16-bit integer between 0 and {(2**16 - 1)}"
-            )
+            raise AttributeError(f"`value` must be a 16-bit integer between 0 and {(2**16 - 1)}")
 
         # Scale from 16-bit to 12-bit value (quantization errors will occur!).
         self.raw_value = value >> 4
@@ -355,7 +351,7 @@ class Channel:
 
     @gain.setter
     def gain(self, value: Literal[1, 2]) -> None:
-        if not value in (1, 2):
+        if value not in {1, 2}:
             raise AttributeError("`gain` must be 1 or 2")
         self._gain = value - 1
         self._dac.sync_gains()

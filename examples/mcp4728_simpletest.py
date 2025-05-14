@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import board
+
 import adafruit_mcp4728
 
 MCP4728_DEFAULT_ADDRESS = 0x60
