@@ -80,11 +80,23 @@ class CV:
 class Vref(CV):
     """Options for ``vref``"""
 
-
 Vref.add_values(
     (
         ("VDD", 0, "VDD", None),
         ("INTERNAL", 1, "Internal 2.048V", None),
+    )
+)
+
+
+class PowerState(CV):
+    """Options for ``power_state``"""
+
+PowerState.add_values(
+    (
+        ("NORMAL", 0, "NORMAL", None),
+        ("PD1K", 1, "PD1K", None),
+        ("PD100K", 2, "PD100K", None),
+        ("PD500K", 3, "PD500K", None),
     )
 )
 
@@ -214,6 +226,21 @@ class MCP4728:
         with self.i2c_device as i2c:
             i2c.write(buf)
 
+    def sync_power_states(self) -> None:
+        """Syncs the driver's power_state state with the DAC"""
+
+        ps_setter_command = 0b10100000_00000000
+        ps_setter_command |= self.channel_a.power_state << 10
+        ps_setter_command |= self.channel_b.power_state << 8
+        ps_setter_command |= self.channel_c.power_state << 6
+        ps_setter_command |= self.channel_d.power_state << 4
+
+        buf = bytearray(2)
+        pack_into(">H", buf, 0, ps_setter_command)
+
+        with self.i2c_device as i2c:
+            i2c.write(buf)
+
     def _set_value(self, channel: "Channel") -> None:
         channel_bytes = self._generate_bytes_with_flags(channel)
 
@@ -233,6 +260,7 @@ class MCP4728:
 
         buf[0] |= channel.vref << 7
         buf[0] |= channel.gain << 4
+        buf[0] |= channel.power_state << 5
 
         return buf
 
@@ -263,6 +291,10 @@ class MCP4728:
         Resumes Normal Operation mode"""
 
         self._general_call(_MCP4728_GENERAL_CALL_WAKEUP_COMMAND)
+        self.channel_a.power_state = PowerState.NORMAL
+        self.channel_b.power_state = PowerState.NORMAL
+        self.channel_c.power_state = PowerState.NORMAL
+        self.channel_d.power_state = PowerState.NORMAL
 
     def soft_update(self) -> None:
         """Updates all DAC analog outputs (VOUT) at the same time."""
@@ -294,6 +326,7 @@ class Channel:
     ) -> None:
         self._vref = cache_page["vref"]
         self._gain = cache_page["gain"]
+        self._power_state = cache_page["power_state"]
         self._raw_value = cache_page["value"]
         self._dac = dac_instance
         self.channel_index = index
@@ -342,11 +375,11 @@ class Channel:
 
     @property
     def gain(self) -> Literal[1, 2]:
-        """Sets the gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
+        """The gain of the channel if the Vref for the channel is ``Vref.INTERNAL``.
         **The gain setting has no effect if the Vref for the channel is `Vref.VDD`**.
 
         With gain set to 1, the output voltage goes from 0v to 2.048V. If a channel's gain is set
-        to 2, the voltage goes from 0V to 4.096V. :attr:`gain` Must be 1 or 2"""
+        to 2, the voltage goes from 0V to 4.096V. :attr:`gain` must be 1 or 2"""
         return self._gain
 
     @gain.setter
@@ -358,7 +391,8 @@ class Channel:
 
     @property
     def vref(self) -> Literal[0, 1]:
-        """Sets the DAC's voltage reference source. Must be a ``VREF``"""
+        """The DAC's voltage reference source. Should be a ``VREF``"""
+        ### TODO case correction for above - VREF -> Vref
         return self._vref
 
     @vref.setter
@@ -367,3 +401,15 @@ class Channel:
             raise AttributeError("range must be a `Vref`")
         self._vref = value
         self._dac.sync_vrefs()
+
+    @property
+    def power_state(self) -> Literal[0, 1, 2, 3]:
+        """The DAC's power-down state. Should be a ``PowerState``"""
+        return self._power_state
+
+    @power_state.setter
+    def power_state(self, value: Literal[0, 1, 2, 3]) -> None:
+        if not PowerState.is_valid(value):
+            raise AttributeError("range must be a PowerState")
+        self._power_state = value
+        self._dac.sync_power_states()
